@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base overrides ── */
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Platform toggle row ── */
+.platform-row {
+  @apply flex items-center justify-between bg-cc-surface rounded-lg px-3 py-2.5 hover:bg-cc-elevated transition-colors duration-150 cursor-pointer;
+}
+
+/* ── Toggle switch ── */
+.toggle {
+  @apply relative inline-flex items-center cursor-pointer;
+}
+
+.toggle input {
+  @apply sr-only;
+}
+
+.toggle-slider {
+  @apply w-9 h-5 rounded-full bg-gray-600 relative transition-colors duration-200;
+}
+
+.toggle-slider::after {
+  content: "";
+  @apply absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200;
+}
+
+.toggle input:checked + .toggle-slider {
+  @apply bg-cc-green;
+}
+
+.toggle input:checked + .toggle-slider::after {
+  @apply translate-x-4;
+}
+
+.toggle input:disabled + .toggle-slider {
+  @apply opacity-40 cursor-not-allowed;
+}
+
+/* ── Focus states ── */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  @apply outline-2 outline-offset-2 outline-cc-blue;
+}
+
+/* ── Platform progress card (extracting state) ── */
+.progress-card {
+  @apply bg-cc-surface rounded-lg p-3;
+}
+
+.progress-card .platform-name {
+  @apply text-xs font-medium text-gray-300;
+}
+
+.progress-card .platform-status {
+  @apply text-[11px] text-gray-500;
+}
+
+.progress-card .progress-track {
+  @apply w-full h-1 bg-gray-700 rounded-full overflow-hidden mt-1.5;
+}
+
+.progress-card .progress-fill {
+  @apply h-full bg-cc-green rounded-full transition-all duration-300;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-600;
+}

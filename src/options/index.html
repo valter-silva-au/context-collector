@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Context Collector - Settings</title>
+    <link rel="stylesheet" href="./options.css" />
+  </head>
+  <body class="bg-cc-base text-gray-50 font-sans antialiased min-h-screen">
+    <div class="max-w-xl mx-auto px-6 py-10">
+      <!-- Header -->
+      <div class="mb-8">
+        <div class="flex items-center gap-2 mb-1">
+          <svg class="w-6 h-6 text-cc-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <h1 class="text-2xl font-bold">Context Collector Settings</h1>
+        </div>
+        <p class="text-sm text-gray-400">Configure extraction preferences</p>
+      </div>
+
+      <!-- General Settings -->
+      <section class="mb-8">
+        <h2 class="text-lg font-semibold mb-4">General</h2>
+        <div class="bg-cc-surface rounded-lg p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-medium">Default date range</div>
+              <div class="text-xs text-gray-500">How far back to extract by default</div>
+            </div>
+            <select id="opt-date-range" class="bg-cc-elevated text-sm text-gray-200 rounded px-3 py-1.5 border border-subtle outline-none focus:border-cc-blue cursor-pointer">
+              <option value="last_7_days">Last 7 days</option>
+              <option value="last_30_days" selected>Last 30 days</option>
+              <option value="last_90_days">Last 90 days</option>
+              <option value="all_time">All time</option>
+            </select>
+          </div>
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-medium">Extraction mode</div>
+              <div class="text-xs text-gray-500">Full re-extracts everything; incremental gets only new messages</div>
+            </div>
+            <div class="flex items-center gap-3 text-sm">
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="radio" name="opt-mode" value="full" checked class="accent-cc-green" />
+                <span class="text-gray-300">Full</span>
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="radio" name="opt-mode" value="incremental" class="accent-cc-green" />
+                <span class="text-gray-300">Incremental</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Output Preview -->
+      <section class="mb-8">
+        <h2 class="text-lg font-semibold mb-4">Output Preview</h2>
+        <div class="bg-cc-surface rounded-lg p-5">
+          <p class="text-sm text-gray-400 mb-3">Your extractions will be organized as:</p>
+          <pre class="font-mono text-xs text-gray-500 leading-relaxed bg-cc-elevated rounded-lg p-4 overflow-x-auto">extracts/
+├── manifest.json
+├── whatsapp/
+│   └── chats/
+│       ├── dad.md
+│       └── work-team.md
+├── gmail/
+│   ├── emails/
+│   └── threads/
+│       └── project-discussion.md
+├── telegram/
+│   ├── chats/
+│   ├── groups/
+│   └── channels/
+└── linkedin/
+    ├── messages/
+    └── posts/</pre>
+        </div>
+      </section>
+
+      <!-- Privacy -->
+      <section class="mb-8">
+        <h2 class="text-lg font-semibold mb-4">Privacy</h2>
+        <div class="bg-cc-surface rounded-lg p-5">
+          <div class="flex items-start gap-3 mb-4">
+            <svg class="w-5 h-5 text-cc-green mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <div class="text-sm text-gray-400 leading-relaxed">
+              Context Collector processes all data locally in your browser.<br />
+              No data is ever sent to external servers.<br />
+              No analytics or telemetry is collected.
+            </div>
+          </div>
+          <div class="border-t border-subtle pt-4">
+            <div class="text-xs font-medium text-gray-400 mb-2">Permissions used:</div>
+            <ul class="text-xs text-gray-500 space-y-1">
+              <li>web.whatsapp.com (content extraction)</li>
+              <li>web.telegram.org (content extraction)</li>
+              <li>mail.google.com (content extraction)</li>
+              <li>linkedin.com (content extraction)</li>
+            </ul>
+          </div>
+          <div class="mt-4">
+            <a href="https://github.com/valter-silva-au/context-collector"
+               target="_blank" rel="noopener noreferrer"
+               class="text-xs text-cc-blue hover:underline cursor-pointer">
+              View Source Code on GitHub
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Data Management -->
+      <section class="mb-8">
+        <h2 class="text-lg font-semibold mb-4">Data Management</h2>
+        <div class="bg-cc-surface rounded-lg p-5">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-medium">Reset onboarding</div>
+              <div class="text-xs text-gray-500">Show the welcome flow again next time</div>
+            </div>
+            <button id="btn-reset-onboarding" class="text-xs text-gray-400 border border-subtle rounded px-3 py-1.5 hover:bg-cc-elevated transition-colors cursor-pointer">
+              Reset
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <footer class="text-center text-xs text-gray-600 mt-12">
+        Context Collector v0.1.0 &middot; Open Source &middot; MIT License
+      </footer>
+    </div>
+
+    <script type="module" src="./options.ts"></script>
+  </body>
+</html>

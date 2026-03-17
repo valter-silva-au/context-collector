@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=380" />
+    <title>Context Collector</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body class="bg-cc-base text-gray-50 w-[380px] min-h-[200px] max-h-[600px] overflow-y-auto font-sans antialiased">
+    <!-- Header -->
+    <header class="flex items-center justify-between px-4 py-3 border-b border-subtle">
+      <div class="flex items-center gap-2">
+        <svg class="w-5 h-5 text-cc-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <h1 class="text-base font-semibold">Context Collector</h1>
+      </div>
+      <button id="btn-settings" class="p-1.5 rounded-md hover:bg-cc-elevated transition-colors duration-150 cursor-pointer" title="Settings">
+        <svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- Onboarding (first run) -->
+    <section id="view-onboarding" class="hidden p-6 text-center">
+      <div id="onboarding-steps">
+        <!-- Step 1: Welcome -->
+        <div class="onboarding-step" data-step="1">
+          <svg class="w-12 h-12 mx-auto mb-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <h2 class="text-lg font-bold mb-2">Context Collector</h2>
+          <p class="text-sm text-gray-400 mb-4 leading-relaxed">Extract your conversations as structured Markdown for AI agents.</p>
+          <p class="text-xs text-gray-500 mb-6">WhatsApp &middot; Telegram &middot; Gmail &middot; LinkedIn</p>
+        </div>
+        <!-- Step 2: Privacy -->
+        <div class="onboarding-step hidden" data-step="2">
+          <svg class="w-12 h-12 mx-auto mb-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <h2 class="text-lg font-bold mb-2">Your data stays local</h2>
+          <ul class="text-sm text-gray-400 text-left space-y-2 mb-6 px-2">
+            <li class="flex items-start gap-2"><span class="text-cc-green mt-0.5">&#10003;</span> All processing in your browser</li>
+            <li class="flex items-start gap-2"><span class="text-cc-green mt-0.5">&#10003;</span> No data sent externally -- ever</li>
+            <li class="flex items-start gap-2"><span class="text-cc-green mt-0.5">&#10003;</span> No analytics or telemetry</li>
+            <li class="flex items-start gap-2"><span class="text-cc-green mt-0.5">&#10003;</span> Open source for transparency</li>
+          </ul>
+        </div>
+        <!-- Step 3: How it works -->
+        <div class="onboarding-step hidden" data-step="3">
+          <svg class="w-12 h-12 mx-auto mb-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <h2 class="text-lg font-bold mb-2">How it works</h2>
+          <ol class="text-sm text-gray-400 text-left space-y-1.5 mb-4 px-2 list-decimal list-inside">
+            <li>Select platforms to extract</li>
+            <li>Click "Extract Context"</li>
+            <li>Download structured Markdown</li>
+            <li>Feed to your AI agents</li>
+          </ol>
+          <div class="bg-cc-surface rounded-lg p-3 text-left font-mono text-xs text-gray-500">
+            <div>extracts/whatsapp/chats/dad.md</div>
+            <div>extracts/gmail/threads/project.md</div>
+          </div>
+        </div>
+      </div>
+      <!-- Step indicator + CTA -->
+      <div class="mt-6">
+        <button id="btn-onboarding-next" class="w-full py-2.5 px-4 rounded-md bg-cc-green text-cc-base font-semibold text-sm hover:bg-cc-green-hover active:scale-[0.98] transition-all duration-150 cursor-pointer">
+          Get Started
+        </button>
+        <div class="flex items-center justify-center gap-1.5 mt-4">
+          <span class="step-dot w-6 h-1 rounded-full bg-cc-green transition-colors duration-200"></span>
+          <span class="step-dot w-6 h-1 rounded-full bg-gray-700 transition-colors duration-200"></span>
+          <span class="step-dot w-6 h-1 rounded-full bg-gray-700 transition-colors duration-200"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main view (idle) -->
+    <section id="view-idle" class="hidden">
+      <!-- Platform toggles -->
+      <div class="p-3 space-y-1.5">
+        <div class="platform-row" data-platform="whatsapp">
+          <div class="flex items-center gap-2.5">
+            <span class="w-5 h-5 rounded flex items-center justify-center text-xs font-bold" style="color:#25D366">W</span>
+            <span class="text-sm font-medium">WhatsApp</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" checked data-platform-toggle="whatsapp" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="platform-row" data-platform="telegram">
+          <div class="flex items-center gap-2.5">
+            <span class="w-5 h-5 rounded flex items-center justify-center text-xs font-bold" style="color:#26A5E4">T</span>
+            <span class="text-sm font-medium">Telegram</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" data-platform-toggle="telegram" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="platform-row" data-platform="gmail">
+          <div class="flex items-center gap-2.5">
+            <span class="w-5 h-5 rounded flex items-center justify-center text-xs font-bold" style="color:#EA4335">G</span>
+            <span class="text-sm font-medium">Gmail</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" checked data-platform-toggle="gmail" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="platform-row" data-platform="linkedin">
+          <div class="flex items-center gap-2.5">
+            <span class="w-5 h-5 rounded flex items-center justify-center text-xs font-bold" style="color:#0A66C2">in</span>
+            <span class="text-sm font-medium">LinkedIn</span>
+            <span class="text-[10px] text-cc-amber bg-cc-amber/10 px-1.5 py-0.5 rounded">Soon</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" disabled data-platform-toggle="linkedin" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Quick filters -->
+      <div class="px-3 pb-3 space-y-2">
+        <div class="flex items-center justify-between bg-cc-surface rounded-lg px-3 py-2.5">
+          <span class="text-xs font-medium text-gray-400">Date Range</span>
+          <select id="select-date-range" class="bg-cc-elevated text-xs text-gray-200 rounded px-2 py-1 border border-subtle outline-none focus:border-cc-blue cursor-pointer">
+            <option value="last_7_days">Last 7 days</option>
+            <option value="last_30_days" selected>Last 30 days</option>
+            <option value="last_90_days">Last 90 days</option>
+            <option value="all_time">All time</option>
+          </select>
+        </div>
+        <div class="flex items-center justify-between bg-cc-surface rounded-lg px-3 py-2.5">
+          <span class="text-xs font-medium text-gray-400">Mode</span>
+          <div class="flex items-center gap-3 text-xs">
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="radio" name="mode" value="full" checked class="accent-cc-green" />
+              <span class="text-gray-300">Full</span>
+            </label>
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="radio" name="mode" value="incremental" class="accent-cc-green" />
+              <span class="text-gray-300">Incremental</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div class="px-3 pb-2">
+        <button id="btn-extract" class="w-full py-2.5 px-4 rounded-md bg-cc-green text-cc-base font-semibold text-sm hover:bg-cc-green-hover active:scale-[0.98] transition-all duration-150 cursor-pointer">
+          Extract Context
+        </button>
+      </div>
+
+      <!-- Privacy badge -->
+      <div class="px-3 pb-3">
+        <div class="flex items-center justify-center gap-1.5 text-[11px] text-gray-500 border border-subtle rounded-md py-1.5">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          All data stays on your device
+        </div>
+      </div>
+    </section>
+
+    <!-- Extracting view -->
+    <section id="view-extracting" class="hidden p-3">
+      <p class="text-sm font-semibold mb-3">Extracting...</p>
+      <div id="platform-progress" class="space-y-3 mb-4">
+        <!-- Filled dynamically -->
+      </div>
+      <!-- Overall progress -->
+      <div class="bg-cc-surface rounded-lg p-3 mb-4">
+        <div class="flex items-center justify-between text-xs text-gray-400 mb-1.5">
+          <span id="overall-label">Overall</span>
+          <span id="overall-pct">0%</span>
+        </div>
+        <div class="w-full h-1 bg-gray-700 rounded-full overflow-hidden">
+          <div id="overall-bar" class="h-full bg-cc-green rounded-full transition-all duration-300" style="width:0%"></div>
+        </div>
+        <div class="text-[11px] text-gray-500 mt-1.5" id="elapsed-time">Elapsed: 0:00</div>
+      </div>
+      <button id="btn-cancel" class="w-full py-2 px-4 rounded-md border border-subtle text-sm text-gray-300 hover:bg-cc-elevated transition-colors duration-150 cursor-pointer">
+        Cancel
+      </button>
+      <div class="flex items-center justify-center gap-1.5 text-[11px] text-gray-500 mt-2">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        Processing locally
+      </div>
+    </section>
+
+    <!-- Complete view -->
+    <section id="view-complete" class="hidden p-3">
+      <div class="flex items-center gap-2 mb-3">
+        <svg class="w-5 h-5 text-cc-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        <p class="text-sm font-semibold">Extraction Complete</p>
+      </div>
+      <div id="results-summary" class="bg-cc-surface rounded-lg p-3 mb-4 text-sm text-gray-300 space-y-1">
+        <!-- Filled dynamically -->
+      </div>
+      <button id="btn-download" class="w-full py-2.5 px-4 rounded-md bg-cc-green text-cc-base font-semibold text-sm hover:bg-cc-green-hover active:scale-[0.98] transition-all duration-150 cursor-pointer mb-2">
+        Download ZIP
+      </button>
+      <button id="btn-extract-again" class="w-full py-2 px-4 rounded-md border border-subtle text-sm text-gray-300 hover:bg-cc-elevated transition-colors duration-150 cursor-pointer">
+        Extract Again
+      </button>
+      <div class="flex items-center justify-center gap-1.5 text-[11px] text-gray-500 mt-3">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        No data was sent externally
+      </div>
+    </section>
+
+    <!-- Error view -->
+    <section id="view-error" class="hidden p-3">
+      <div class="flex items-center gap-2 mb-3">
+        <svg class="w-5 h-5 text-cc-amber" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <p class="text-sm font-semibold">Partial Extraction</p>
+      </div>
+      <div id="error-details" class="bg-cc-surface rounded-lg p-3 mb-4 text-sm space-y-2">
+        <!-- Filled dynamically -->
+      </div>
+      <div class="flex gap-2">
+        <button id="btn-download-partial" class="flex-1 py-2 px-3 rounded-md bg-cc-green text-cc-base font-semibold text-sm hover:bg-cc-green-hover transition-colors cursor-pointer">
+          Download Partial
+        </button>
+        <button id="btn-retry" class="flex-1 py-2 px-3 rounded-md border border-subtle text-sm text-gray-300 hover:bg-cc-elevated transition-colors cursor-pointer">
+          Retry
+        </button>
+      </div>
+    </section>
+
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>

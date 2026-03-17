@@ -9,3 +9,5 @@ extracts/
 *.zip
 *.crx
 web-ext-artifacts/
+test-results/
+screenshots/
