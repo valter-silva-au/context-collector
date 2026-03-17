@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.*
+*.pem
+*.key
+extracts/
+.DS_Store
+*.zip
+*.crx
+web-ext-artifacts/
