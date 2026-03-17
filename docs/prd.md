@@ -1121,6 +1121,12 @@ Context is king.
 
 ---
 
+## Related Documents
+
+- **[UI/UX Design Specification](./ui-ux-design.md)** - Complete design system, wireframes, interaction patterns, and accessibility checklist
+
+---
+
 **Document Status:** Draft for review
 **Next Steps:** Review with stakeholders, validate technical feasibility, begin Phase 1 development
 **Feedback:** Open GitHub issue or email valter.silva.au@gmail.com
