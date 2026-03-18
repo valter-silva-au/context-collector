@@ -9,66 +9,104 @@ import type {
 /**
  * WhatsApp Web Adapter
  *
- * Extracts individual and group chats from web.whatsapp.com.
- * Uses data-* attributes and ARIA roles which are more stable than class names.
+ * Strategy: Use multiple fallback selector chains since WhatsApp Web
+ * frequently changes class names. Prefer data-testid, aria-*, and role
+ * attributes which are more stable.
  *
- * Known selectors (as of March 2026, WhatsApp Web):
- * - Chat list sidebar: div[aria-label="Chat list"] or #pane-side
- * - Chat items: div[role="listitem"] inside the sidebar
- * - Chat name: span[data-testid="cell-frame-title"] span[dir="auto"]
- * - Last message preview: span[data-testid="last-msg-status"]
- * - Message container: div[role="application"] or div[data-testid="conversation-panel-messages"]
- * - Message rows: div[data-testid="msg-container"]
- * - Message text: span.selectable-text
- * - Sender (in groups): span[data-testid="msg-meta"] or message metadata
- * - Timestamp: span[data-testid="msg-time"] or div[data-pre-plain-text]
+ * Debugging: All operations log to console with [CC:WA] prefix.
+ * Open DevTools on the WhatsApp Web tab to see extraction progress.
  */
 
-// Selectors grouped for easy maintenance
-const S = {
-  chatListSidebar: "#pane-side",
-  chatItems: '[role="listitem"]',
-  chatTitle: 'span[dir="auto"]',
-  conversationPanel: '[data-testid="conversation-panel-messages"]',
-  messageContainer: '[data-testid="msg-container"]',
-  messageText: "span.selectable-text",
-  messageTime: '[data-testid="msg-time"]',
-  messageSender: '[data-testid="msg-meta"]',
-  messageIn: ".message-in",
-  messageOut: ".message-out",
-  headerTitle: "header span[dir='auto']",
-  searchBox: '[data-testid="chat-list-search"]',
-  backButton: '[data-testid="back"]',
+// Multiple selector strategies - try each until one works
+const SELECTORS = {
+  // Chat list container (sidebar)
+  chatList: [
+    "#pane-side",
+    '[data-testid="chat-list"]',
+    '[aria-label*="Chat list"]',
+    '[aria-label*="chat list"]',
+    'div[role="grid"]',
+    "#app .two > div:nth-child(1)",
+  ],
+  // Individual chat rows in the sidebar
+  chatRows: [
+    '[role="listitem"]',
+    '[data-testid="cell-frame-container"]',
+    '[data-testid="list-item"]',
+    "#pane-side > div > div > div > div",
+  ],
+  // Chat name within a row
+  chatName: [
+    'span[dir="auto"][title]',
+    'span[data-testid="cell-frame-title"] span',
+    'span[dir="auto"]',
+  ],
+  // Message container area
+  messagePanel: [
+    '[data-testid="conversation-panel-messages"]',
+    'div[role="application"]',
+    "#main .copyable-area",
+    "#main",
+  ],
+  // Individual message bubbles
+  messageRows: [
+    '[data-testid="msg-container"]',
+    'div.message-in, div.message-out',
+    '[data-id][class*="message"]',
+    'div[data-id]',
+  ],
+  // Message text content
+  messageText: [
+    "span.selectable-text span",
+    "span.selectable-text",
+    '[data-testid="balloon-text"] span',
+    ".copyable-text span",
+  ],
+  // Timestamp
+  messageTime: [
+    '[data-testid="msg-time"]',
+    '[data-testid="msg-meta"] span',
+    'span[dir="auto"].copyable-text',
+    "div[data-pre-plain-text]",
+  ],
 } as const;
 
 export class WhatsAppAdapter extends BaseAdapter {
   platform = "whatsapp" as const;
   private currentUser = "You";
+  private log = (...args: unknown[]) =>
+    console.log("[CC:WA]", ...args);
 
   canHandle(url: string): boolean {
     return url.includes("web.whatsapp.com");
   }
 
   async initialize(): Promise<void> {
-    // Wait for the chat list sidebar to be loaded
-    const sidebar = await this.waitForElement(S.chatListSidebar, 15000);
+    this.log("Initializing WhatsApp adapter...");
+    const sidebar = await this.findFirst(SELECTORS.chatList, 15000);
     if (!sidebar) {
       throw new Error(
-        "WhatsApp Web not loaded. Please make sure you are logged in."
+        "WhatsApp Web not loaded. Please make sure you are logged in and the chat list is visible."
       );
     }
+    this.log("Chat list found:", sidebar.tagName, sidebar.className.slice(0, 50));
   }
 
   async extractChats(): Promise<NormalizedChat[]> {
-    const sidebar = document.querySelector(S.chatListSidebar);
-    if (!sidebar) return [];
+    const chatRows = this.queryAll(SELECTORS.chatRows);
+    this.log(`Found ${chatRows.length} chat rows`);
 
-    const chatItems = sidebar.querySelectorAll(S.chatItems);
+    if (chatRows.length === 0) {
+      this.log("No chat rows found. Selectors tried:", SELECTORS.chatRows);
+      this.log("Sidebar HTML preview:", document.querySelector("#pane-side")?.innerHTML?.slice(0, 500));
+      return [];
+    }
+
     const chats: NormalizedChat[] = [];
 
-    for (const item of chatItems) {
-      const titleEl = item.querySelector(S.chatTitle);
-      const name = this.getText(titleEl);
+    for (const row of chatRows) {
+      const nameEl = this.queryFirst(SELECTORS.chatName, row);
+      const name = nameEl?.textContent?.trim() || nameEl?.getAttribute("title")?.trim();
       if (!name) continue;
 
       const id = `whatsapp-${sanitizeId(name)}`;
@@ -77,13 +115,13 @@ export class WhatsAppAdapter extends BaseAdapter {
         id,
         platform: "whatsapp",
         name,
-        type: "individual", // We'll refine this during message extraction
+        type: "individual",
         participants: [{ id: "self", name: this.currentUser }],
         messageCount: 0,
-        lastMessage: undefined,
       });
     }
 
+    this.log(`Extracted ${chats.length} chat names:`, chats.map((c) => c.name));
     return chats;
   }
 
@@ -91,78 +129,153 @@ export class WhatsAppAdapter extends BaseAdapter {
     chatId: string,
     _options?: ExtractionOptions
   ): Promise<NormalizedMessage[]> {
-    // Find and click the chat in the sidebar
     const chatName = chatId.replace("whatsapp-", "").replace(/-/g, " ");
+    this.log(`Opening chat: "${chatName}"`);
+
     const opened = await this.openChat(chatName);
-    if (!opened) return [];
+    if (!opened) {
+      this.log(`Failed to open chat: "${chatName}"`);
+      return [];
+    }
 
-    // Wait for messages to load
-    await this.delay(1000);
+    // Wait for messages to render
+    await this.delay(1500);
 
-    // Scroll up to load history (limited for MVP)
-    const panel = document.querySelector(S.conversationPanel);
+    // Scroll up to load more history (limited)
+    const panel = this.queryFirst(SELECTORS.messagePanel);
     if (panel) {
-      await this.scrollToLoadHistory(panel, 10, 600);
+      this.log("Scrolling to load message history...");
+      await this.scrollToLoadHistory(panel, 5, 800);
+    } else {
+      this.log("No message panel found. Selectors tried:", SELECTORS.messagePanel);
     }
 
     // Parse visible messages
-    const msgElements = document.querySelectorAll(S.messageContainer);
+    const messages = this.parseVisibleMessages(chatId, chatName);
+    this.log(`Extracted ${messages.length} messages from "${chatName}"`);
+
+    return messages;
+  }
+
+  private async openChat(name: string): Promise<boolean> {
+    const chatRows = this.queryAll(SELECTORS.chatRows);
+    this.log(`Searching for "${name}" in ${chatRows.length} chat rows`);
+
+    for (const row of chatRows) {
+      const nameEl = this.queryFirst(SELECTORS.chatName, row);
+      const rowName = nameEl?.textContent?.trim() || nameEl?.getAttribute("title")?.trim() || "";
+
+      if (rowName.toLowerCase() === name.toLowerCase()) {
+        this.log(`Found chat row for "${name}", clicking...`);
+        await this.clickAndWait(row, 1000);
+
+        // Verify conversation panel appeared
+        const panel = await this.findFirst(SELECTORS.messagePanel, 5000);
+        if (panel) {
+          this.log("Conversation panel loaded");
+          return true;
+        }
+        this.log("Conversation panel did not appear after clicking");
+        return false;
+      }
+    }
+
+    this.log(`Chat "${name}" not found in sidebar`);
+    return false;
+  }
+
+  private parseVisibleMessages(
+    chatId: string,
+    chatName: string
+  ): NormalizedMessage[] {
+    const messageEls = this.queryAll(SELECTORS.messageRows);
+    this.log(`Found ${messageEls.length} message elements`);
+
+    if (messageEls.length === 0) {
+      this.log("Selectors tried:", SELECTORS.messageRows);
+      // Debug: dump what's in the message panel
+      const panel = this.queryFirst(SELECTORS.messagePanel);
+      if (panel) {
+        this.log("Message panel child count:", panel.children.length);
+        this.log("First few children:", Array.from(panel.children).slice(0, 3).map(
+          (c) => `${c.tagName}.${c.className.slice(0, 40)}`
+        ));
+      }
+      return [];
+    }
+
     const messages: NormalizedMessage[] = [];
 
-    for (const el of msgElements) {
-      const msg = this.parseMessage(el, chatId, chatName);
+    for (const el of messageEls) {
+      const msg = this.parseOneMessage(el, chatId, chatName);
       if (msg) messages.push(msg);
     }
 
     return messages;
   }
 
-  private async openChat(name: string): Promise<boolean> {
-    const sidebar = document.querySelector(S.chatListSidebar);
-    if (!sidebar) return false;
-
-    const chatItems = sidebar.querySelectorAll(S.chatItems);
-
-    for (const item of chatItems) {
-      const titleEl = item.querySelector(S.chatTitle);
-      const title = this.getText(titleEl);
-
-      if (title.toLowerCase() === name.toLowerCase()) {
-        await this.clickAndWait(item, 800);
-        // Wait for conversation panel
-        await this.waitForElement(S.conversationPanel, 5000);
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  private parseMessage(
+  private parseOneMessage(
     el: Element,
     chatId: string,
     chatName: string
   ): NormalizedMessage | null {
-    // Determine if incoming or outgoing
-    const isOutgoing = el.closest(".message-out") !== null;
+    // Determine direction
+    const isOutgoing =
+      el.classList.contains("message-out") ||
+      el.closest(".message-out") !== null ||
+      el.querySelector('[data-testid="msg-dblcheck"]') !== null ||
+      el.querySelector('[data-testid="msg-check"]') !== null;
 
-    // Extract text
-    const textEl = el.querySelector(S.messageText);
-    const text = this.getText(textEl);
+    // Extract text - try multiple strategies
+    let text = "";
+    for (const sel of SELECTORS.messageText) {
+      const textEl = el.querySelector(sel);
+      if (textEl?.textContent?.trim()) {
+        text = textEl.textContent.trim();
+        break;
+      }
+    }
+
+    if (!text) {
+      // Last resort: get all text from the message bubble, excluding metadata
+      const clone = el.cloneNode(true) as Element;
+      // Remove timestamp and metadata elements
+      clone.querySelectorAll('[data-testid="msg-time"], [data-testid="msg-meta"]').forEach((e) => e.remove());
+      text = clone.textContent?.trim() || "";
+    }
+
     if (!text) return null;
 
     // Extract timestamp
-    const timeEl = el.querySelector(S.messageTime);
-    const timeText = this.getText(timeEl);
-    const timestamp = parseWhatsAppTime(timeText);
+    let timestamp = new Date().toISOString();
+    for (const sel of SELECTORS.messageTime) {
+      const timeEl = el.querySelector(sel);
+      if (timeEl) {
+        // Check data-pre-plain-text attribute (most reliable)
+        const prePlain = timeEl.getAttribute("data-pre-plain-text");
+        if (prePlain) {
+          timestamp = parsePrePlainText(prePlain);
+          break;
+        }
+        const timeText = timeEl.textContent?.trim();
+        if (timeText && /\d{1,2}:\d{2}/.test(timeText)) {
+          timestamp = parseTimeText(timeText);
+          break;
+        }
+      }
+    }
 
-    // Extract sender for group messages
-    const prePlain = el.querySelector("[data-pre-plain-text]");
+    // Also check parent for data-pre-plain-text
+    const prePlainEl = el.querySelector("[data-pre-plain-text]");
+    if (prePlainEl) {
+      const attr = prePlainEl.getAttribute("data-pre-plain-text") || "";
+      if (attr) timestamp = parsePrePlainText(attr);
+    }
+
+    // Sender
     let senderName = isOutgoing ? this.currentUser : chatName;
-
-    if (prePlain) {
-      const attr = prePlain.getAttribute("data-pre-plain-text") ?? "";
-      // Format: "[HH:MM, DD/MM/YYYY] Sender Name: "
+    if (prePlainEl) {
+      const attr = prePlainEl.getAttribute("data-pre-plain-text") || "";
       const match = attr.match(/\]\s*(.+?):\s*$/);
       if (match) senderName = match[1];
     }
@@ -172,30 +285,22 @@ export class WhatsAppAdapter extends BaseAdapter {
       name: senderName,
     };
 
-    // Extract links
+    // Links
     const links: string[] = [];
     el.querySelectorAll("a[href]").forEach((a) => {
       const href = a.getAttribute("href");
-      if (href && href.startsWith("http")) links.push(href);
+      if (href?.startsWith("http")) links.push(href);
     });
 
-    // Detect media
+    // Media detection
     const media: NormalizedMessage["media"] = [];
-    if (el.querySelector("img[src*='blob:']")) {
+    if (el.querySelector('img[src*="blob:"], img[src*="base64"]'))
       media.push({ type: "image" });
-    }
-    if (el.querySelector("video")) {
-      media.push({ type: "video" });
-    }
-    if (
-      el.querySelector('[data-testid="audio-play"]') ||
-      el.querySelector("audio")
-    ) {
+    if (el.querySelector("video")) media.push({ type: "video" });
+    if (el.querySelector("audio, [data-testid*='audio']"))
       media.push({ type: "audio" });
-    }
 
-    // Generate unique ID from content + time
-    const id = `wa-${hashCode(chatId + timestamp + text)}`;
+    const id = `wa-${hashCode(chatId + timestamp + text.slice(0, 100))}`;
 
     return {
       id,
@@ -205,13 +310,66 @@ export class WhatsAppAdapter extends BaseAdapter {
       chatType: "individual",
       sender,
       timestamp,
-      content: {
-        text,
-        links,
-        mentions: [],
-      },
+      content: { text, links, mentions: [] },
       media: media.length > 0 ? media : undefined,
     };
+  }
+
+  // ── Selector helpers ──
+
+  /** Try multiple selectors, return first match */
+  private queryFirst(
+    selectors: readonly string[],
+    root: Element | Document = document
+  ): Element | null {
+    for (const sel of selectors) {
+      const el = root.querySelector(sel);
+      if (el) return el;
+    }
+    return null;
+  }
+
+  /** Try multiple selectors, return all matches from first working selector */
+  private queryAll(
+    selectors: readonly string[],
+    root: Element | Document = document
+  ): Element[] {
+    for (const sel of selectors) {
+      const els = root.querySelectorAll(sel);
+      if (els.length > 0) {
+        this.log(`Selector matched: "${sel}" -> ${els.length} elements`);
+        return Array.from(els);
+      }
+    }
+    return [];
+  }
+
+  /** Wait for first matching selector to appear */
+  private async findFirst(
+    selectors: readonly string[],
+    timeout = 10000
+  ): Promise<Element | null> {
+    // Check immediately
+    const immediate = this.queryFirst(selectors);
+    if (immediate) return immediate;
+
+    // Wait with observer
+    return new Promise((resolve) => {
+      const observer = new MutationObserver(() => {
+        const el = this.queryFirst(selectors);
+        if (el) {
+          observer.disconnect();
+          resolve(el);
+        }
+      });
+
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      setTimeout(() => {
+        observer.disconnect();
+        resolve(this.queryFirst(selectors));
+      }, timeout);
+    });
   }
 }
 
@@ -227,28 +385,42 @@ function sanitizeId(name: string): string {
 function hashCode(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
+    hash = (hash << 5) - hash + str.charCodeAt(i);
     hash |= 0;
   }
   return Math.abs(hash).toString(36);
 }
 
-function parseWhatsAppTime(timeText: string): string {
-  // WhatsApp shows time as "HH:MM" or "HH:MM AM/PM"
-  // We combine with today's date for a rough timestamp
+/** Parse WhatsApp's data-pre-plain-text: "[HH:MM, DD/MM/YYYY] Sender: " */
+function parsePrePlainText(attr: string): string {
+  const match = attr.match(
+    /\[(\d{1,2}:\d{2}(?:\s*[AP]M)?),?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})\]/i
+  );
+  if (match) {
+    const [, time, date] = match;
+    const parts = date.split("/");
+    // Could be DD/MM/YYYY or MM/DD/YYYY depending on locale
+    const dateStr = parts.length === 3
+      ? `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`
+      : date;
+    try {
+      const d = new Date(`${dateStr}T${time.replace(/\s/g, "")}`);
+      if (!isNaN(d.getTime())) return d.toISOString();
+    } catch { /* fall through */ }
+  }
+  return new Date().toISOString();
+}
+
+/** Parse "HH:MM" or "HH:MM AM/PM" into ISO timestamp */
+function parseTimeText(timeText: string): string {
   const now = new Date();
-  try {
-    const parts = timeText.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-    if (parts) {
-      let hours = parseInt(parts[1], 10);
-      const minutes = parseInt(parts[2], 10);
-      if (parts[3]?.toUpperCase() === "PM" && hours !== 12) hours += 12;
-      if (parts[3]?.toUpperCase() === "AM" && hours === 12) hours = 0;
-      now.setHours(hours, minutes, 0, 0);
-    }
-  } catch {
-    // Fall through to default
+  const parts = timeText.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  if (parts) {
+    let hours = parseInt(parts[1], 10);
+    const minutes = parseInt(parts[2], 10);
+    if (parts[3]?.toUpperCase() === "PM" && hours !== 12) hours += 12;
+    if (parts[3]?.toUpperCase() === "AM" && hours === 12) hours = 0;
+    now.setHours(hours, minutes, 0, 0);
   }
   return now.toISOString();
 }

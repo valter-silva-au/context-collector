@@ -13,6 +13,8 @@ import type {
  * and delegates to the appropriate platform adapter.
  */
 
+const log = (...args: unknown[]) => console.log("[CC:Content]", ...args);
+
 let extractionAborted = false;
 
 onMessage((message, _sender, sendResponse) => {
@@ -21,13 +23,24 @@ onMessage((message, _sender, sendResponse) => {
       const { options } = message.payload as {
         options?: ExtractionOptions;
       };
+      log("Received EXTRACT_PLATFORM command", options);
       handleExtraction(options)
-        .then((result) => sendResponse(result))
-        .catch((err) =>
+        .then((result) => {
+          log("Extraction result:", {
+            chats: result.chats.length,
+            messages: result.messages.length,
+            error: result.error,
+          });
+          sendResponse(result);
+        })
+        .catch((err) => {
+          log("Extraction error:", err);
           sendResponse({
+            chats: [],
+            messages: [],
             error: err instanceof Error ? err.message : String(err),
-          })
-        );
+          });
+        });
       return true; // async response
     }
 
@@ -65,16 +78,25 @@ async function handleExtraction(options?: ExtractionOptions): Promise<{
     };
   }
 
+  log(`Using ${adapter.platform} adapter for ${window.location.hostname}`);
+
   try {
     await adapter.initialize();
+    log("Adapter initialized");
 
-    // Extract chat list
     const chats = await adapter.extractChats();
+    log(`Found ${chats.length} chats`);
+
     const allMessages: NormalizedMessage[] = [];
 
-    // Extract messages from each chat
-    for (const chat of chats) {
-      if (extractionAborted) break;
+    for (let i = 0; i < chats.length; i++) {
+      const chat = chats[i];
+      if (extractionAborted) {
+        log("Extraction aborted by user");
+        break;
+      }
+
+      log(`Extracting chat ${i + 1}/${chats.length}: "${chat.name}"`);
 
       // Report progress
       chrome.runtime.sendMessage({
@@ -82,33 +104,35 @@ async function handleExtraction(options?: ExtractionOptions): Promise<{
         payload: {
           platform: adapter.platform,
           currentChat: chat.name,
-          completedChats: allMessages.length > 0 ? chats.indexOf(chat) : 0,
+          completedChats: i,
           totalChats: chats.length,
+          extractedMessages: allMessages.length,
         },
-      });
+      }).catch(() => {});
 
-      const messages = await adapter.extractMessages(chat.id, options);
-      allMessages.push(...messages);
-
-      // Update chat message count
-      chat.messageCount = messages.length;
+      try {
+        const messages = await adapter.extractMessages(chat.id, options);
+        allMessages.push(...messages);
+        chat.messageCount = messages.length;
+        log(`  -> ${messages.length} messages extracted`);
+      } catch (err) {
+        log(`  -> Error extracting "${chat.name}":`, err);
+      }
 
       // Rate limiting between chats
       await new Promise((r) => setTimeout(r, 500));
     }
 
     adapter.cleanup();
+    log(`Extraction complete: ${chats.length} chats, ${allMessages.length} messages`);
 
     return { chats, messages: allMessages };
   } catch (err) {
     adapter.cleanup();
-    return {
-      chats: [],
-      messages: [],
-      error: err instanceof Error ? err.message : String(err),
-    };
+    const msg = err instanceof Error ? err.message : String(err);
+    log("Extraction failed:", msg);
+    return { chats: [], messages: [], error: msg };
   }
 }
 
-// Signal that content script is ready
-console.log("[Context Collector] Content script loaded for", window.location.hostname);
+log(`Content script loaded for ${window.location.hostname} (${window.location.href})`);
